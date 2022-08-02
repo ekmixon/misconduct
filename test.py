@@ -62,11 +62,16 @@ for incident in misconduct:
 		continue
 	elif "tags" in incident:
 		tags = set(incident["tags"].split(" "))
-		bad_tags = tags - {
-			"elections", "corruption", "sexual-harassment-abuse", "crime",
-			"ethics", "resolved", "unresolved"}
-		if bad_tags:
-			error(incident, "Incident has invalid 'tags': {}".format(bad_tags))
+		if bad_tags := tags - {
+			"elections",
+			"corruption",
+			"sexual-harassment-abuse",
+			"crime",
+			"ethics",
+			"resolved",
+			"unresolved",
+		}:
+			error(incident, f"Incident has invalid 'tags': {bad_tags}")
 
 	for cons in incident["consequences"]:
 		if not isinstance(cons, dict):
@@ -97,9 +102,13 @@ for incident in misconduct:
 				error(incident, cons, "In consequence with body, 'action' should be a string.")
 
 		for field in ("text", "action"):
-			if field in cons:
-				if "](" in cons[field]:
-					error(incident, cons, "Consequence looks like it has a Markdown link in {} that should be in the link field instead.".format(field))
+			if field in cons and "](" in cons[field]:
+				error(
+					incident,
+					cons,
+					f"Consequence looks like it has a Markdown link in {field} that should be in the link field instead.",
+				)
+
 
 		if not isinstance(cons.get("link"), (type(None), str, list)):
 			error(incident, cons, "Consequence has an invalid 'link' value.")
@@ -108,24 +117,41 @@ for incident in misconduct:
 				if not isinstance(item, str):
 					error(incident, cons, "Consequence has an invalid 'link' value.")
 
-		if "tags" in cons and not isinstance(cons["tags"], str):
-			error(incident, cons, "Consequence has invalid 'tags', should be a string.")
-			continue
-		elif "tags" in cons:
-			tags = set(cons["tags"].split(" "))
-			bad_tags = tags - {
-				"expulsion", "censure", "reprimand", "resignation", "exclusion",
-				"settlement", "conviction", "plea" }
-			if bad_tags:
-				error(incident, cons, "Consequence has invalid 'tags': {}.".format(bad_tags))
+		if "tags" in cons:
+			if not isinstance(cons["tags"], str):
+				error(incident, cons, "Consequence has invalid 'tags', should be a string.")
+			else:
+				tags = set(cons["tags"].split(" "))
+				if bad_tags := tags - {
+					"expulsion",
+					"censure",
+					"reprimand",
+					"resignation",
+					"exclusion",
+					"settlement",
+					"conviction",
+					"plea",
+				}:
+					error(incident, cons, f"Consequence has invalid 'tags': {bad_tags}.")
 
 	# Suggest incidents whose allegation or text fields probably could be shortened.
 	if len(incident["allegation"]) > 750:
 		error(incident, "'allegation' could probably be shorter.")
-	if len(incident["consequences"]) > 2 and len(remove_markdown_link_urls(incident["text"])) > 800:
-		error(incident, "'text' could probably be shorter.")
-	elif len(incident["consequences"]) > 2 and len(incident["text"]) > 400 and len(remove_markdown_link_urls(incident["text"])) > .8 * (len(incident["allegation"]) + len(" ".join(remove_markdown_link_urls(str(cons)) for cons in incident["consequences"]))):
-		error(incident, "'text' could probably be shorter.")
+	if len(incident["consequences"]) > 2:
+		if len(remove_markdown_link_urls(incident["text"])) > 800:
+			error(incident, "'text' could probably be shorter.")
+		elif len(incident["text"]) > 400 and len(
+			remove_markdown_link_urls(incident["text"])
+		) > 0.8 * (
+			len(incident["allegation"])
+			+ len(
+				" ".join(
+					remove_markdown_link_urls(str(cons))
+					for cons in incident["consequences"]
+				)
+			)
+		):
+			error(incident, "'text' could probably be shorter.")
 
 
 if has_error:
